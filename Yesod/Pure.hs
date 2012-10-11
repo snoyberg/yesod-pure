@@ -6,6 +6,7 @@ module Yesod.Pure
 import Yesod
 import Data.Text (Text)
 import Data.Text.Lazy.Builder (fromText)
+import System.Log.FastLogger (Logger)
 
 type RouteParse master = [Text] -> Maybe (Route master)
 
@@ -18,10 +19,23 @@ handler :: HasReps a
         -> Maybe (GHandler sub master ChooseRep)
 handler = Just . fmap chooseRep
 
-dispatch parse dispatch logger master sub toMaster on404 on405 method pieces session =
+dispatch :: (YesodDispatch master master, Yesod master)
+         => RouteParse master
+         -> RouteDispatch master
+         -> Logger
+         -> master
+         -> master
+         -> (Route master -> Route master)
+         -> (Maybe (SessionBackend master) -> Application)
+         -> (Route master -> Maybe (SessionBackend master) -> Application)
+         -> Text
+         -> [Text]
+         -> Maybe (SessionBackend master)
+         -> Application
+dispatch parse dispatch' logger master sub toMaster on404 on405 method pieces session =
     case parse pieces of
         Just route ->
-            case dispatch method route of
+            case dispatch' method route of
                 Just h -> yesodRunner logger h master sub (Just route) toMaster session
                 Nothing -> on405 route session
         Nothing -> on404 session
