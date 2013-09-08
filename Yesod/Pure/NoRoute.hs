@@ -11,22 +11,24 @@ import Yesod.Pure
 import Data.Text (Text)
 import Control.Applicative (Applicative (..), Alternative (..))
 import Data.Monoid (Monoid (..))
+import Yesod.Core.Types
 
 data App = App (NoRouteDispatch ())
+data NoRouteDispatch a = NoRouteDispatch 
+	(Text -> [Text] -> Maybe (YesodRunnerEnv Content)) (Maybe a)
 
-instance YesodDispatch App App where
-    yesodDispatch logger master@(App (NoRouteDispatch d _)) sub toMaster on404 _ =
-        dispatch (Just . AppRoute) d' logger master sub toMaster on404 (const on404)
-      where
-        d' m (AppRoute ps) = d m ps
 
 instance RenderRoute App where
     newtype Route App = AppRoute [Text]
         deriving Eq
     renderRoute (AppRoute x) = (x, [])
-
-data NoRouteDispatch a = NoRouteDispatch (Text -> [Text] -> Maybe (GHandler App App ChooseRep)) (Maybe a)
-
+{-
+instance YesodDispatch App where
+    yesodDispatch master =
+        dispatch (Just . AppRoute) d' logger master sub toMaster on404 (const on404)
+      where
+        d' m (AppRoute ps) = d m ps
+		
 instance Functor NoRouteDispatch where
     fmap f (NoRouteDispatch x ma) = NoRouteDispatch x (fmap f ma)
 instance Applicative NoRouteDispatch where
@@ -47,11 +49,10 @@ instance Monad NoRouteDispatch where
     NoRouteDispatch f Nothing >>= _ = NoRouteDispatch f Nothing
     NoRouteDispatch a (Just x) >>= f = NoRouteDispatch a (Just ()) *> f x
 
-serve :: HasReps a => GHandler App App a -> NoRouteDispatch ()
 serve h =
     NoRouteDispatch go (Just ())
   where
-    go _ [] = Just $ fmap chooseRep h
+    go _ [] = Just $ fmap toContent h
     go _ _ = Nothing
 
 method :: Text -> NoRouteDispatch a -> NoRouteDispatch a
@@ -93,3 +94,4 @@ multi f =
             Just ps ->
                 let (NoRouteDispatch f' _) = f ps
                  in f' m []
+-}

@@ -1,6 +1,8 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE NoMonomorphismRestriction #-}
+
 import Yesod.Pure
 import qualified Text.Blaze.Html5 as H
 import qualified Text.Blaze.Html5.Attributes as HA
@@ -16,32 +18,30 @@ instance RenderRoute App where
     renderRoute HomeR = ([], [])
     renderRoute (FibR i) = (["fib", toPathPiece i], [])
 
-parseRoute :: RouteParse App
-parseRoute [] = Just HomeR
-parseRoute ["fib", i] = FibR <$> fromPathPiece i
-parseRoute _ = Nothing
+parseRoute1 [] = Just HomeR
+parseRoute1 ["fib", i] = FibR <$> fromPathPiece i
+parseRoute1 _ = Nothing
 
-dispatchRoute :: RouteDispatch App
 dispatchRoute "GET" HomeR = handler getHomeR
 dispatchRoute "GET" (FibR i) = handler $ getFibR i
 dispatchRoute _ _ = Nothing
 
-instance YesodDispatch App App where
-    yesodDispatch = dispatch parseRoute dispatchRoute
-
 instance Yesod App
-type Handler = GHandler App App
+yesodRunner
+instance YesodDispatch App where
+    yesodDispatch = yesodRunner ?? dispatch parseRoute1 dispatchRoute
+{-
 
-getHomeR :: Handler RepHtml
-getHomeR = defaultLayout $ do
+-}
+-- getHomeR :: (HandlerSite m, MonadWidget m) => m ()
+getHomeR = do
     setTitle "Hello World!"
     toWidget $ \render -> do
         H.p "Hello World"
         H.a ! HA.href (toValue $ render (FibR 5) []) $ "Fifth fib"
     addCSS "p { color: red }"
 
-getFibR :: Int -> Handler RepHtml
-getFibR i = defaultLayout $ do
+getFibR i = do
     setTitle "Fibs"
     toWidget $ \render -> do
         H.p $ do
@@ -53,6 +53,7 @@ getFibR i = defaultLayout $ do
 
 fibs :: [Int]
 fibs = 0 : 1 : zipWith (+) fibs (tail fibs)
-
 main :: IO ()
 main = warpDebug 3000 App
+{-
+-}
